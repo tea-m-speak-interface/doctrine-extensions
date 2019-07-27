@@ -11,12 +11,21 @@ namespace Webmasters\Doctrine\DBAL\Types;
  */
 use \Doctrine\DBAL\Types\DateType as OldDateType;
 use \Doctrine\DBAL\Platforms\AbstractPlatform;
+use \Webmasters\Doctrine\ORM\Util\DateTime;
 
-class DateType extends OldDateType
-{
-    public function convertToDatabaseValue($value, AbstractPlatform $platform)
-    {
-        if ($value instanceof \Webmasters\Doctrine\ORM\Util\DateTime) {
+/**
+ * Class DateType
+ * @package Webmasters\Doctrine\DBAL\Types
+ */
+class DateType extends OldDateType {
+    /**
+     * @param $value
+     * @param AbstractPlatform $platform
+     * @return string
+     * @throws \Doctrine\DBAL\Types\ConversionException
+     */
+    public function convertToDatabaseValue($value, AbstractPlatform $platform): string {
+        if ($value instanceof DateTime) {
             $value = $value->getDateTime();
         }
         

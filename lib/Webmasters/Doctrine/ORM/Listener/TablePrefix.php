@@ -9,18 +9,27 @@ namespace Webmasters\Doctrine\ORM\Listener;
  * @author Daniel André
  */
 use \Doctrine\ORM\Event\LoadClassMetadataEventArgs;
+use \Doctrine\ORM\Mapping\ClassMetadataInfo;
 
-class TablePrefix
-{
+/**
+ * Class TablePrefix
+ * @package Webmasters\Doctrine\ORM\Listener
+ */
+class TablePrefix {
     protected $prefix = '';
 
-    public function __construct($prefix)
-    {
+    /**
+     * TablePrefix constructor.
+     * @param $prefix
+     */
+    public function __construct($prefix) {
         $this->prefix = (string)$prefix;
     }
 
-    public function loadClassMetadata(LoadClassMetadataEventArgs $eventArgs)
-    {
+    /**
+     * @param LoadClassMetadataEventArgs $eventArgs
+     */
+    public function loadClassMetadata(LoadClassMetadataEventArgs $eventArgs): void {
         $classMetadata = $eventArgs->getClassMetadata();
         $classMetadata->setPrimaryTable(
             ['name' => $this->prefix . $classMetadata->getTableName()]
@@ -28,7 +37,7 @@ class TablePrefix
 
         foreach ($classMetadata->getAssociationMappings() as $fieldName => $mapping) {
             if (
-                $mapping['type'] == \Doctrine\ORM\Mapping\ClassMetadataInfo::MANY_TO_MANY &&
+                $mapping['type'] == ClassMetadataInfo::MANY_TO_MANY &&
                 !empty($classMetadata->associationMappings[$fieldName]['joinTable'])
             ) {
                 $mappedTableName = $classMetadata->associationMappings[$fieldName]['joinTable']['name'];

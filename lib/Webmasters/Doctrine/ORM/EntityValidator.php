@@ -2,14 +2,22 @@
 
 namespace Webmasters\Doctrine\ORM;
 
-class EntityValidator
-{
+/**
+ * Class EntityValidator
+ * @package Webmasters\Doctrine\ORM
+ */
+class EntityValidator {
     protected $em;
     protected $entity;
     protected $errors = [];
 
-    public function __construct($em, $entity)
-    {
+    /**
+     * EntityValidator constructor.
+     * @param $em
+     * @param $entity
+     * @throws \Exception
+     */
+    public function __construct($em, $entity) {
         $this->em = $em;
         $this->entity = $entity;
 
@@ -34,13 +42,18 @@ class EntityValidator
         $this->executeValidation();
     }
 
-    public function getEntityManager()
-    {
+    /**
+     * @return mixed
+     */
+    public function getEntityManager(){
         return $this->em;
     }
 
-    public function getRepository($class = null)
-    {
+    /**
+     * @param null $class
+     * @return mixed
+     */
+    public function getRepository($class = null){
         if (empty($class)) {
             $class = get_class($this->entity);
         }
@@ -48,37 +61,44 @@ class EntityValidator
         return $this->getEntityManager()->getRepository($class);
     }
 
-    public function getEntity()
-    {
+    /**
+     * @return mixed
+     */
+    public function getEntity() {
         return $this->entity;
     }
 
-    public function addError($error)
-    {
+    /**
+     * @param $error
+     */
+    public function addError($error) {
         $this->errors[] = $error;
     }
 
-    public function getErrors()
-    {
+    /**
+     * @return array
+     */
+    public function getErrors() {
         return $this->errors;
     }
 
-    public function isValid()
-    {
+    /**
+     * @return bool
+     */
+    public function isValid() {
         return empty($this->errors);
     }
 
-    protected function executeValidation()
-    {
+    /**
+     * @throws \Exception
+     */
+    protected function executeValidation() {
         $requiredMethod = 'mapToArray'; // i.e. Trait ArrayMappable
         if (!method_exists($this->entity, $requiredMethod)) {
-            throw new \Exception(
-                sprintf('Method %s missing in entity', $requiredMethod)
-            );
+            throw new \Exception(sprintf('Method %s missing in entity', $requiredMethod));
         }
         
         $data = $this->entity->$requiredMethod(false, false);
-
         foreach ($data as $key => $val) {
             $validate = 'validate' . ucfirst($key);
             if (method_exists($this, $validate)) {

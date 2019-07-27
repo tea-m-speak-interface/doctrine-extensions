@@ -2,14 +2,21 @@
 
 namespace Webmasters\Doctrine\ORM\Util;
 
-class DateTime
-{
+/**
+ * Class DateTime
+ * @package Webmasters\Doctrine\ORM\Util
+ */
+class DateTime {
     protected $raw = null;
     protected $datetime = null;
     protected $errors = [];
 
-    public function __construct($value)
-    {
+    /**
+     * DateTime constructor.
+     * @param $value
+     * @throws \Exception
+     */
+    public function __construct($value) {
         if (is_string($value)) {
             $this->raw = $value;
             $this->convert2Object();
@@ -22,23 +29,32 @@ class DateTime
         }
     }
 
-    public function getRaw()
-    {
+    /**
+     * @return string
+     */
+    public function getRaw(): string {
         return $this->raw;
     }
 
-    public function getDateTime()
-    {
+    /**
+     * @return \DateTime|DateTime
+     */
+    public function getDateTime() {
         return $this->datetime;
     }
 
-    public function getErrors()
-    {
+    /**
+     * @return array
+     */
+    public function getErrors(): array {
         return $this->errors;
     }
 
-    public function format($format)
-    {
+    /**
+     * @param $format
+     * @return string|null
+     */
+    public function format($format): ?string {
         $result = $this->raw;
         if ($this->isValid()) {
             $result = $this->datetime->format($format);
@@ -47,15 +63,20 @@ class DateTime
         return $result;
     }
 
-    public function modify($modification)
-    {
+    /**
+     * @param $modification
+     */
+    public function modify($modification): void {
         if ($this->isValid()) {
             $this->datetime->modify($modification);
         }
     }
 
-    public function diff($datetime)
-    {
+    /**
+     * @param $datetime
+     * @return bool|\DateInterval
+     */
+    public function diff($datetime) {
         $result = false;
         if ($this->isValid() && $datetime->isValid()) {
             $result = $this->datetime->diff($datetime->getDateTime());
@@ -73,16 +94,20 @@ class DateTime
         );
     }
 
-    public function hasRollOver()
-    {
-        return (
-            isset($this->errors['warnings']) &&
-            isset($this->errors['warnings'][11])
-        );
+    /**
+     * @return bool
+     */
+    public function hasRollOver(): bool {
+        return (isset($this->errors['warnings']) &&
+                isset($this->errors['warnings'][11]));
     }
 
-    public function isValidClosingDate($datetime, $format = '%r%a')
-    {
+    /**
+     * @param $datetime
+     * @param string $format
+     * @return bool
+     */
+    public function isValidClosingDate($datetime, $format = '%r%a'): bool {
         $diff = $this->diff($datetime);
 
         $result = false;
@@ -96,16 +121,21 @@ class DateTime
         return $result;
     }
 
-    protected function convert2Object()
-    {
+    /**
+     * @throws \Exception
+     */
+    protected function convert2Object(): void {
         if ($this->isValidDate($this->raw)) {
             $this->datetime = new \DateTime($this->raw);
             $this->errors = \DateTime::getLastErrors();
         }
     }
 
-    protected function isValidDate($str)
-    {
+    /**
+     * @param $str
+     * @return bool
+     */
+    protected function isValidDate($str): bool {
         $stamp = strtotime($str);
 
         if ($stamp === false) {

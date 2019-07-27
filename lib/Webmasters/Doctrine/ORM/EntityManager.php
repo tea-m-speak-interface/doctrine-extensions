@@ -4,12 +4,23 @@ namespace Webmasters\Doctrine\ORM;
 
 use \Doctrine\ORM\Configuration, \Doctrine\ORM\Events, \Doctrine\DBAL\DriverManager, \Doctrine\Common\EventManager, \Doctrine\DBAL\Types;
 
+/**
+ * Class EntityManager
+ * @package Webmasters\Doctrine\ORM
+ */
 class EntityManager extends \Doctrine\ORM\EntityManager
 {
-    public static function create($conn, Configuration $config, EventManager $eventManager = null)
-    {
+    /**
+     * @param array|\Doctrine\DBAL\Connection $conn
+     * @param Configuration $config
+     * @param EventManager|null $eventManager
+     * @return \Doctrine\ORM\EntityManager|EntityManager
+     * @throws \Doctrine\DBAL\DBALException
+     * @throws \Doctrine\ORM\ORMException
+     */
+    public static function create($conn, Configuration $config, EventManager $eventManager = null) {
         parent::create($conn, $config, $eventManager);
-
+        $evm = null;
         if (is_array($conn)) {
             $prefix = isset($conn['prefix']) ? $conn['prefix'] : '';
 
@@ -35,8 +46,13 @@ class EntityManager extends \Doctrine\ORM\EntityManager
         return new EntityManager($conn, $config, $evm);
     }
 
-    public function getValidator($entity, $validator = null)
-    {
+    /**
+     * @param $entity
+     * @param null $validator
+     * @return mixed
+     * @throws \Exception
+     */
+    public function getValidator($entity, $validator = null) {
         if (!$validator) {
             $class = $this->parseClass(
                 \Doctrine\Common\Util\ClassUtils::getClass($entity)
@@ -53,12 +69,13 @@ class EntityManager extends \Doctrine\ORM\EntityManager
         return new $validator($this, $entity);
     }
 
-    /* Link: http://php.net/manual/de/function.get-class.php#107964 */
-    protected function parseClass($class)
-    {
+    /**
+     * @param $class
+     * @return array
+     */
+    protected function parseClass($class) {
         return [
             'namespace' => array_slice(explode('\\', $class), 0, -1),
-            'classname' => join('', array_slice(explode('\\', $class), -1)),
-        ];
+            'classname' => join('', array_slice(explode('\\', $class), -1)),];
     }
 }

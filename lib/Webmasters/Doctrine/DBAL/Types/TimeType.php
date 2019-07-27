@@ -11,12 +11,21 @@ namespace Webmasters\Doctrine\DBAL\Types;
  */
 use \Doctrine\DBAL\Types\TimeType as OldTimeType;
 use \Doctrine\DBAL\Platforms\AbstractPlatform;
+use \Webmasters\Doctrine\ORM\Util\DateTime;
 
-class TimeType extends OldTimeType
-{
-    public function convertToDatabaseValue($value, AbstractPlatform $platform)
-    {
-        if ($value instanceof \Webmasters\Doctrine\ORM\Util\DateTime) {
+/**
+ * Class TimeType
+ * @package Webmasters\Doctrine\DBAL\Types
+ */
+class TimeType extends OldTimeType {
+    /**
+     * @param $value
+     * @param AbstractPlatform $platform
+     * @return string
+     * @throws \Doctrine\DBAL\Types\ConversionException
+     */
+    public function convertToDatabaseValue($value, AbstractPlatform $platform): string {
+        if ($value instanceof DateTime) {
             $value = $value->getDateTime();
         }
         

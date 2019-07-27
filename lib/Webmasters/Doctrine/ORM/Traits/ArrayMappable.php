@@ -4,10 +4,16 @@ namespace Traits;
 
 use Webmasters\Doctrine\ORM\Util\StringConverter;
 
-trait ArrayMappable
-{
-    public function mapFromArray(array $data, $camelize = true)
-    {
+/**
+ * Trait ArrayMappable
+ * @package Traits
+ */
+trait ArrayMappable {
+    /**
+     * @param array $data
+     * @param bool $camelize
+     */
+    public function mapFromArray(array $data, $camelize = true): void {
         if ($data) {
             foreach ($data as $key => $value) {
                 if ($camelize) {
@@ -23,8 +29,12 @@ trait ArrayMappable
         }
     }
 
-    public function mapToArray($withId = true, $decamelize = true)
-    {
+    /**
+     * @param bool $withId
+     * @param bool $decamelize
+     * @return array
+     */
+    public function mapToArray($withId = true, $decamelize = true): array {
         $attributes = get_object_vars($this);
 
         $result = [];

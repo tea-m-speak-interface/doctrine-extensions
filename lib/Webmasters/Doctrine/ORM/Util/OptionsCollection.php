@@ -1,23 +1,33 @@
 <?php
 
 namespace Webmasters\Doctrine\ORM\Util;
+/**
+ * Class OptionsCollection
+ * @package Webmasters\Doctrine\ORM\Util
+ */
+class OptionsCollection {
+    protected $options = [];
 
-class OptionsCollection
-{
-    protected $options;
-
-    public function __construct($options)
-    {
+    /**
+     * OptionsCollection constructor.
+     * @param $options
+     */
+    public function __construct($options) {
         $this->options = $options;
     }
 
-    public function all()
-    {
+    /**
+     * @return array
+     */
+    public function all(): array {
         return $this->options;
     }
 
-    public function has($key)
-    {
+    /**
+     * @param $key
+     * @return bool
+     */
+    public function has($key): bool {
         $hasOption = false;
         if (isset($this->options[$key])) {
             $hasOption = true;
@@ -26,13 +36,20 @@ class OptionsCollection
         return $hasOption;
     }
 
-    public function set($key, $value)
-    {
+    /**
+     * @param $key
+     * @param $value
+     */
+    public function set($key, $value): void {
         $this->options[$key] = $value;
     }
 
-    public function get($key)
-    {
+    /**
+     * @param $key
+     * @return mixed
+     * @throws \Exception
+     */
+    public function get($key) {
         if (!$this->has($key)) {
             throw new \Exception(
                 sprintf('Option "%s" missing', $key)

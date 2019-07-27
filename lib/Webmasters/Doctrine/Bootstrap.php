@@ -2,18 +2,19 @@
 
 namespace Webmasters\Doctrine;
 
-// Kurznamen der zentralen Doctrine Namespaces anlegen
-use \Doctrine\Common, \Doctrine\DBAL, \Doctrine\ORM;
+use Doctrine\Common\Cache\{ChainCache, ApcuCache, ArrayCache, ZendDataCache};
+use Doctrine\Common\Annotations\{AnnotationException, CachedReader, AnnotationReader};
+use Doctrine\Common\Annotations\AnnotationRegistry;
+use Doctrine\ORM\Mapping\Driver\AnnotationDriver;
+use Doctrine\ORM\Mapping\Driver\DriverChain;
+use Doctrine\Common\EventManager;
+use Doctrine\ORM\EntityManager;
+use Doctrine\ORM as ORM;
 
-// Alias der Webmasters Doctrine Extensions anlegen
-use \Webmasters\Doctrine\ORM as WORM;
+use Gedmo\DoctrineExtensions;
 
-class Bootstrap
-{
+class Bootstrap implements IBootstrap {
     protected static $singletonInstance = null;
-
-    protected $connectionOptions = [];
-    protected $applicationOptions = [];
 
     protected $annotationReader;
     protected $cache;
@@ -21,126 +22,195 @@ class Bootstrap
     protected $driverChain;
     protected $listeners;
     protected $ormConfiguration;
+    protected $configuration;
 
     protected $eventManager;
     protected $entityManager;
 
-    protected function __construct($connectionOptions, $applicationOptions)
-    {
+    /**
+     * Bootstrap constructor.
+     * @param Configuration $configuration
+     */
+    protected function __construct(Configuration $configuration) {
+        $this->configuration = $configuration;
         $vendorDir = realpath(__DIR__ . '/../../../../..');
         $baseDir = dirname($vendorDir);
         $host = php_uname('n');
+        $this->errorMode();
 
-        if (empty($connectionOptions)) {
-            $path = $baseDir . '/config/';
+        if (empty($configuration->getConnectionOptions())) {
+            $path = $baseDir . '/Config/';
             if (file_exists($path . $host . '-config.php')) {
                 require_once $path . $host . '-config.php';
             } elseif (file_exists($path . 'default-config.php')) {
                 require_once $path . 'default-config.php';
+                if(file_exists($path . 'app-config.php')) {
+                    require_once $path . 'app-config.php';
+                }
             } else {
                 die(sprintf('"config/default-config.php" or "config/%s-config.php" missing!', $host));
             }
+
+            if(isset($connectionOptions)) {
+                $configuration->setConnectionOptions($connectionOptions);
+            } else if(isset($applicationConfig) && array_key_exists('connectionOptions',$applicationConfig)) {
+                $configuration->setConnectionOptions($applicationConfig['connectionOptions']);
+            } else {
+                die(sprintf('Connection options missing!', $host));
+            }
         }
 
-        $defaultOptions = [
-            'autogenerate_proxy_classes' => true,
-            'base_dir' => $baseDir,
-            'debug_mode' => true,
-            'em_class' => '\\Webmasters\\Doctrine\\ORM\\EntityManager',
-            'entity_dir' => $baseDir . '/src/Entities',
-            'gedmo_ext' => ['Timestampable'],
-            'proxy_dir' => realpath(ini_get('session.save_path')), // Ablage im Temp-Verzeichnis mit sys_get_temp_dir()
-            'vendor_dir' => $vendorDir,
-        ];
+        if(empty($configuration->getBaseDir())) {
+            $configuration->setBaseDir($baseDir);
+        }
 
-        $this->setConnectionOptions($connectionOptions);
-        $this->setApplicationOptions($applicationOptions + $defaultOptions);
-        $this->errorMode();
+        if(empty($configuration->getEntityDir())) {
+            $configuration->setEntityDir($baseDir . '/src/Entities');
+        }
+
+        if(empty($configuration->getVendorDir())) {
+            $configuration->setVendorDir($vendorDir);
+        }
+
+        if(empty($this->configuration->getMetadataCacheImpl())) {
+            $configuration->setMetadataCacheImpl($this->getDefaultCache());
+        }
+
+        if(empty($this->configuration->getQueryCacheImpl())) {
+            $configuration->setQueryCacheImpl($this->getDefaultCache());
+        }
+
+        if(empty($this->configuration->getResultCacheImpl())) {
+            $configuration->setResultCacheImpl($this->getDefaultCache());
+        }
+
+        if (empty($this->configuration->getEntityNamespace())) {
+            $this->configuration->setEntityNamespace(basename($configuration->getEntityDir()));
+        }
     }
 
-    protected function __clone()
-    {
+    /**
+     * @return ChainCache
+     */
+    private function getDefaultCache(): ChainCache {
+        $driver = [];
+        if(function_exists('zend_shm_cache_fetch')) {
+            $driver[] = new ZendDataCache();
+        }
+
+        if(function_exists('apcu_fetch')) {
+            $driver[] = new ApcuCache();
+        }
+
+        $driver[] = new ArrayCache();
+        return new ChainCache($driver);
     }
 
-    public static function getInstance($connectionOptions = [], $applicationOptions = [])
-    {
+    protected function __clone() {}
+
+    /**
+     * @param Configuration $configuration
+     * @return Bootstrap
+     */
+    public static function getInstance(Configuration $configuration): Bootstrap {
         if (self::$singletonInstance == null) {
-            self::$singletonInstance = new Bootstrap($connectionOptions, $applicationOptions);
+            self::$singletonInstance = new Bootstrap($configuration);
         }
 
         return self::$singletonInstance;
     }
 
-    public function getApplicationOptions()
-    {
-        return $this->applicationOptions;
+    /**
+     * @return Configuration
+     */
+    public function getConfiguration(): Configuration {
+        return $this->configuration;
     }
 
-    public function setOption($key, $value)
-    {
-        $this->applicationOptions->set($key, $value);
+    /**
+     * @param Configuration $configuration
+     */
+    public function setConfiguration(Configuration $configuration): void {
+        $this->configuration = $configuration;
+        if(self::$singletonInstance instanceof Bootstrap) {
+            self::$singletonInstance = new Bootstrap($configuration);
+        }
     }
 
-    public function getOption($key)
-    {
-        return $this->getApplicationOptions()->get($key);
+    /**
+     * @param string $key
+     * @param $var
+     */
+    public function setCustomOption(string $key,$var): void {
+        $config = $this->configuration->getCustomConfig();
+        $config->set($key,$var);
+        $this->configuration->setCustomConfig($config);
     }
 
-    public function isDebug()
-    {
-        return $this->getOption('debug_mode') === true;
-    }
-
-    public function getCache()
-    {
-        if ($this->cache === null) {
-            $this->cache = $this->getOption('cache');
-            if (!is_object($this->cache)) {
-                $this->cache = new $this->cache();
-            }
+    /**
+     * @param string $key
+     * @return mixed
+     * @throws \Exception
+     */
+    public function getCustomOption(string $key) {
+        $config = $this->configuration->getCustomConfig();
+        if($config->has($key)) {
+            return $config->get($key);
         }
 
-        return $this->cache;
+        return null;
     }
 
-    public function getAnnotationReader()
-    {
+    /**
+     * @return bool
+     */
+    public function isDebug(): bool {
+        return $this->configuration->getDebugMode();
+    }
+
+    /**
+     * @return AnnotationReader
+     * @throws AnnotationException
+     */
+    public function getAnnotationReader(): AnnotationReader {
         if ($this->annotationReader === null) {
-            $this->annotationReader = new Common\Annotations\AnnotationReader();
+            $this->annotationReader = new AnnotationReader();
         }
 
         return $this->annotationReader;
     }
 
-    public function getCachedAnnotationReader()
-    {
+    /**
+     * @return CachedReader
+     * @throws AnnotationException
+     */
+    public function getCachedAnnotationReader(): CachedReader {
         if ($this->cachedAnnotationReader === null) {
-            $this->cachedAnnotationReader = new Common\Annotations\CachedReader(
+            $this->cachedAnnotationReader = new CachedReader(
                 $this->getAnnotationReader(),
-                $this->getCache(),
-                $this->isDebug()
-            );
+                $this->configuration->getMetadataCacheImpl(),
+                $this->isDebug());
         }
 
         return $this->cachedAnnotationReader;
     }
 
-    public function getDriverChain()
-    {
+    /**
+     * @return DriverChain
+     * @throws AnnotationException
+     */
+    public function getDriverChain(): DriverChain {
         if ($this->driverChain === null) {
-            $this->driverChain = new ORM\Mapping\Driver\DriverChain();
+            $this->driverChain = new DriverChain();
 
-            $ormDir = realpath($this->getOption('vendor_dir') . '/doctrine/orm/lib/Doctrine/ORM');
-
+            $ormDir = realpath($this->configuration->getVendorDir().'/doctrine/orm/lib/Doctrine/ORM');
             // Sicherheitshalber die Datei fuer die Standard Doctrine Annotationen registrieren
-            Common\Annotations\AnnotationRegistry::registerFile(
-                $ormDir . '/Mapping/Driver/DoctrineAnnotations.php'
-            );
+            AnnotationRegistry::registerFile($ormDir . '/Mapping/Driver/DoctrineAnnotations.php');
 
             // Gedmo Annotationen aktivieren sofern Paket installiert
-            if ($this->getOption('gedmo_ext')) {
+            if ($this->configuration->getGedmoExt()) {
                 if (class_exists('\\Gedmo\\DoctrineExtensions')) {
-                    \Gedmo\DoctrineExtensions::registerAbstractMappingIntoDriverChainORM(
+                    DoctrineExtensions::registerAbstractMappingIntoDriverChainORM(
                         $this->driverChain,
                         $this->getCachedAnnotationReader()
                     );
@@ -150,43 +220,47 @@ class Bootstrap
             }
 
             // Wir verwenden die neue Annotations-Syntax für die Entities
-            $annotationDriver = new ORM\Mapping\Driver\AnnotationDriver(
-                $this->getCachedAnnotationReader(),
-                [$this->getOption('entity_dir')]
-            );
+            $annotationDriver = new AnnotationDriver($this->getCachedAnnotationReader(), [$this->configuration->getEntityDir()]);
 
             // AnnotationDriver fuer den Entity-Namespace aktivieren
-            $this->driverChain->addDriver($annotationDriver, $this->getOption('entity_namespace'));
+            $this->driverChain->addDriver($annotationDriver, $this->configuration->getEntityNamespace());
         }
 
         return $this->driverChain;
     }
 
-    public function getOrmConfiguration()
-    {
+    /**
+     * @return ORM\Configuration
+     * @throws AnnotationException
+     */
+    public function getOrmConfiguration(): ORM\Configuration {
         if ($this->ormConfiguration === null) {
             $this->ormConfiguration = new ORM\Configuration();
 
             // Teile Doctrine mit, wie es mit Proxy-Klassen umgehen soll
             $this->ormConfiguration->setProxyNamespace('Proxies');
-            $this->ormConfiguration->setProxyDir($this->getOption('proxy_dir'));
-            $this->ormConfiguration->setAutoGenerateProxyClasses($this->getOption('autogenerate_proxy_classes'));
+            $this->ormConfiguration->setProxyDir($this->configuration->getProxyDir());
+            $this->ormConfiguration->setAutoGenerateProxyClasses($this->configuration->getAutogenerateProxyClasses());
 
             // Ergaenze die DriverChain in der Konfiguration
             $this->ormConfiguration->setMetadataDriverImpl($this->getDriverChain());
 
             // Cache fuer Metadaten, Queries und Results benutzen
-            $cache = $this->getCache();
-            $this->ormConfiguration->setMetadataCacheImpl($cache);
-            $this->ormConfiguration->setQueryCacheImpl($cache);
-            $this->ormConfiguration->setResultCacheImpl($cache);
+            $this->ormConfiguration->setMetadataCacheImpl($this->configuration->getMetadataCacheImpl());
+            $this->ormConfiguration->setQueryCacheImpl($this->configuration->getQueryCacheImpl());
+            $this->ormConfiguration->setResultCacheImpl($this->configuration->getResultCacheImpl());
         }
 
         return $this->ormConfiguration;
     }
 
-    public function getListener($ext, $name)
-    {
+    /**
+     * @param $ext
+     * @param $name
+     * @return mixed
+     * @throws \Exception
+     */
+    public function getListener($ext, $name) {
         if (!isset($this->listeners[$ext][$name])) {
             throw new \Exception(
                 sprintf('Listener "%s\%s" missing', $ext, $name)
@@ -196,27 +270,30 @@ class Bootstrap
         return $this->listeners[$ext][$name];
     }
 
-    public function getEventManager()
-    {
+    /**
+     * @return EventManager
+     * @throws AnnotationException
+     */
+    public function getEventManager(): EventManager {
         if ($this->eventManager === null) {
-            $this->eventManager = new Common\EventManager();
+            $this->eventManager = new EventManager();
 
             // Erweiterungen aktivieren
             $this->initGedmoListeners();
-
-            // MySQL set names UTF-8
-            $this->eventManager->addEventSubscriber(new DBAL\Event\Listeners\MysqlSessionInit());
         }
 
         return $this->eventManager;
     }
 
-    public function getEm()
-    {
+    /**
+     * @return mixed
+     * @throws AnnotationException
+     */
+    public function getEntityManager(): EntityManager {
         if ($this->entityManager === null) {
-            $className = $this->getOption('em_class');
+            $className = $this->configuration->getEntityManagerClass();
             $this->entityManager = $className::create(
-                $this->connectionOptions,
+                $this->configuration->getConnectionOptions(),
                 $this->getOrmConfiguration(),
                 $this->getEventManager()
             );
@@ -225,35 +302,10 @@ class Bootstrap
         return $this->entityManager;
     }
 
-    protected function setConnectionOptions($options)
-    {
-        $this->connectionOptions = $options;
-    }
-
-    protected function setApplicationOptions($options)
-    {
-        if (!isset($options['entity_namespace'])) {
-            $options['entity_namespace'] = basename($options['entity_dir']);
-        }
-
-        if (!isset($options['cache'])) {
-            $className = '\\Doctrine\\Common\Cache\\'; // Namespace
-
-            if (!$options['debug_mode'] && function_exists('apc_store')) {
-                $className .= 'ApcCache'; // Only use APC in production environment
-            } else {
-                $className .= 'ArrayCache';
-            }
-
-            $options['cache'] = $className;
-        }
-
-        $this->applicationOptions = new WORM\Util\OptionsCollection($options);
-    }
-
-    // *** Display Errors In Debug Mode (Default: true) ***
-    protected function errorMode()
-    {
+    /**
+     * Debug Mode
+     */
+    protected function errorMode(): void {
         if (!$this->isDebug()) {
             error_reporting(null);
             ini_set('display_errors', 0); // nur bei nicht fatalen Fehlern
@@ -266,19 +318,23 @@ class Bootstrap
         }
     }
 
-    protected function initGedmoListeners()
-    {
-        if ($this->getOption('gedmo_ext') && is_array($this->getOption('gedmo_ext'))) {
-            $this->listeners['Gedmo'] = [];
-            foreach ($this->getOption('gedmo_ext') as $name) {
+    /**
+     * @throws AnnotationException
+     */
+    protected function initGedmoListeners(): void {
+        if (count($this->configuration->getGedmoExt()) >= 1) {
+            $this->listeners['Gedmo'] = []; $listener = null;
+            foreach ($this->configuration->getGedmoExt() as $name) {
                 if (is_string($name)) {
                     $listenerClass = '\\Gedmo\\' . $name . '\\' . $name . 'Listener';
                     $listener = new $listenerClass();
                     $this->listeners['Gedmo'][$name] = $listener;
                 }
 
-                $listener->setAnnotationReader($this->getCachedAnnotationReader());
-                $this->eventManager->addEventSubscriber($listener);
+                if(is_object($listener)) {
+                    $listener->setAnnotationReader($this->getCachedAnnotationReader());
+                    $this->eventManager->addEventSubscriber($listener);
+                }
             }
         }
     }

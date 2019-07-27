@@ -1,6 +1,6 @@
 # doctrine-extensions for PHP 7.1+
 
-## Webmasters Doctrine Extensions
+## Webmasters Doctrine Extensions for Tea(m)Speak Interface
 
 Just Another Doctrine2 Extension
 
@@ -8,9 +8,13 @@ Just Another Doctrine2 Extension
 
 ```php
 <?php
+// Use Composer autoloading
+require_once 'vendor/autoload.php';
+
+$configuration = new Webmasters\Doctrine\Configuration();
 
 // MySQL database configuration
-$connectionOptions = [
+$configuration->getConnectionOptions([
     'default' => [
         'driver' => 'pdo_mysql',
         'dbname' => 'example_db',
@@ -19,29 +23,33 @@ $connectionOptions = [
         'password' => '',
         'prefix' => '',
     ],
-];
+]);
 
 // Application/Doctrine configuration
-$applicationOptions = [
-    'debug_mode' => true, // in production environment false
-];
+$configuration->setDebugMode(true);
+$configuration->setAutogenerateProxyClasses(true);
+$configuration->setProxyDir("data/proxy");
+$configuration->setResultCacheImpl(_CACHE_DRIVER_);
+.....
 
-// Use Composer autoloading
-require_once 'vendor/autoload.php';
+// Custom configuration for Application
+$configuration->setCustomConfigArray(['test'=> true, 'text' => 'hello']);
+$configuration->getCustomConfig()->has('test');
+echo $configuration->getCustomConfig()->get('text'); //hello
+
 
 // Get Doctrine entity manager
-$bootstrap = Webmasters\Doctrine\Bootstrap::getInstance(
-    $connectionOptions,
-    $applicationOptions
-);
+$bootstrap = Webmasters\Doctrine\Bootstrap::getInstance();
 
-$em = $bootstrap->getEm();
+$em = $bootstrap->getEntityManager();
+
+echo $bootstrap->getConfiguration()->getCustomConfig()->get('text'); //hello
+
+$bootstrap->getConfiguration()->getCustomConfig()->set('world',true);
+
+echo $bootstrap->getConfiguration()->getCustomConfig()->get('world'); //(bool)true
 
 ```
-
-### Changelog
-#### 2019-06-08
-Changed method name validateData to executeValidation, to prevent collisions with an attribute $data in the validated class (thx Peter R).
 
 ### Idea
 [Jan Teriete](https://twitter.com/jteriete)

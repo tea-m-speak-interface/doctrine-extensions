@@ -1,7 +1,7 @@
 {
-    "name": "webmasters/doctrine-extensions",
+    "name": "tea-m-speak-interface/doctrine-extensions",
     "type": "library",
-    "description": "Doctrine2 extensions",
+    "description": "Doctrine2 extensions for Tea(m)Speak-Interface",
     "keywords": [
         "webmasters",
         "doctrine2",
@@ -9,14 +9,20 @@
         "bootstrap",
         "validators"
     ],
-    "homepage": "http://github.com/LeisureLarry/doctrine-extensions",
+    "homepage": "https://github.com/tea-m-speak-interface/doctrine-extensions",
     "license": "MIT",
     "authors": [
         {
             "name": "Jan Teriete",
             "email": "leisure.larry@habmalnefrage.de",
             "homepage": "http://blog-das-oertchen.de/"
+        },
+        {
+            "name": "Lucas Brucksch",
+            "email": "lbrucksch@hammermaps.de",
+            "homepage": "https://www.dzcp.de/"
         }
+
     ],
     "require": {
         "php": ">=7.1",
