@@ -231,18 +231,4 @@ class Configuration implements IConfiguration {
     public function getCustomConfig(): OptionsCollection {
         return $this->custom;
     }
-
-    /**
-     * @param OptionsCollection $config
-     */
-    public function setCustomConfig(OptionsCollection $config): void {
-        $this->custom = $config;
-    }
-
-    /**
-     * @param array $config
-     */
-    public function setCustomConfigArray(array $config): void {
-        $this->custom = new WORM\Util\OptionsCollection($config);
-    }
 }
