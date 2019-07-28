@@ -29,6 +29,14 @@
         "doctrine/orm": ">=2.6.0,<2.7-dev"
     },
     "autoload": {
-        "psr-0": { "Webmasters": "lib/" }
+	    "psr-4": {
+            "Webmasters\\Doctrine\\": "lib/Webmasters/Doctrine/",
+            "Webmasters\\Doctrine\\DBAL\\Types\\": "lib/Webmasters/Doctrine/DBAL/Types/",
+            "Webmasters\\Doctrine\\ORM\\": "lib/Webmasters/Doctrine/ORM/",
+            "Webmasters\\Doctrine\\ORM\\Listener\\": "lib/Webmasters/Doctrine/ORM/Listener/",
+            "Webmasters\\Doctrine\\ORM\\Query\\": "lib/Webmasters/Doctrine/ORM/Query/",
+            "Webmasters\\Doctrine\\ORM\\Util\\StringConverter\\": "lib/Webmasters/Doctrine/ORM/Traits/",
+            "Webmasters\\Doctrine\\ORM\\Util\\": "lib/Webmasters/Doctrine/ORM/Util/"
+        }
     }
 }
