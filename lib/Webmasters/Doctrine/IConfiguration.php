@@ -29,4 +29,8 @@ interface IConfiguration {
     public function getResultCacheImpl(): ?Cache;
     public function setResultCacheImpl(Cache $cache = null): void;
     public function getCustomConfig(): OptionsCollection;
+    public function setCustomConfig(OptionsCollection $config): void;
+    public function setCustomConfigArray(array $config): void;
+    public function getCacheDir(): string;
+    public function setCacheDir(string $dir): void;
 }

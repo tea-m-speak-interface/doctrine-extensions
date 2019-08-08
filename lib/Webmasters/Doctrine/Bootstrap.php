@@ -87,6 +87,10 @@ class Bootstrap implements IBootstrap {
         if (empty($this->configuration->getEntityNamespace())) {
             $this->configuration->setEntityNamespace(basename($this->configuration->getEntityDir()));
         }
+
+        if (empty($this->configuration->getCacheDir())) {
+            $this->configuration->setCacheDir( 'Cache');
+        }
     }
 
     /**
@@ -102,8 +106,7 @@ class Bootstrap implements IBootstrap {
             $driver[] = new ApcuCache();
         }
 
-        $vendorDir = realpath(__DIR__ . '/../../../../..');
-        $driver[] = new PhpFileCache(dirname($vendorDir).'/Cache');
+        $driver[] = new PhpFileCache($this->configuration->getBaseDir().$this->configuration->getCacheDir());
         $driver[] = new ArrayCache();
         return new ChainCache($driver);
     }
